@@ -8,22 +8,30 @@ from selenium.common.exceptions import ElementClickInterceptedException, NoSuchE
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.chrome.options import Options
+
+from pyshadow.main import Shadow
 
 from discord.ext import commands
 
-options = Options()
+options = uc.ChromeOptions()
 
-options.add_argument("--disable-notifications")
+options.add_argument("--disable-dev-shm-usage")
+options.add_argument("--window-size=1920,1080")
+options.add_argument("--start-maximized")
+options.add_argument("--no-sandbox")
+options.add_argument(
+    '--no-first-run --no-service-autorun --password-store=basic')
+options.add_argument("--headless")
 
-DRIVER = uc.Chrome()
+
+DRIVER = uc.Chrome(options=options)
+SHADOW = Shadow(DRIVER)
 # brave browser: options.binary_location = "C:/Program Files/BraveSoftware/Brave-Browser/Application/brave.exe"
 
 ATERNOS_URL = "https://aternos.org/:en/"
 CHROME_PASSWORD_SETTINGS_URL = "chrome://settings/passwords"
 
 DEFAULT_TIMEOUT_IN_SECONDS = 10
-SLEEP_TIME_FOR_JS_SELECTION_OPERATIONS = 2
 
 OFFLINE_STATUS = "offline"
 QUEUEING_STATUS = "queueing"
@@ -79,7 +87,6 @@ def _click_button_by_class_name(*args):
 
 
 def _click_button_by_script_selector(script_selector: str):
-    sleep(SLEEP_TIME_FOR_JS_SELECTION_OPERATIONS)
     element = DRIVER.execute_script(f"return {script_selector}")
     element.click()
 
@@ -124,13 +131,12 @@ def click_play_button():
 
 
 def fill_login_form():
-    username_input_element = DRIVER.find_element_by_xpath(
-        "/html/body/div[3]/div/div/div[4]/div[3]/div[1]/div[2]/input")
-    password_input_element = DRIVER.find_element_by_xpath(
-        "/html/body/div[3]/div/div/div[4]/div[3]/div[2]/div[2]/input")
 
-    username_input_element.send_keys(ATERNOS_ACCOUNT["username"])
-    password_input_element.send_keys(ATERNOS_ACCOUNT["password"])
+    WebDriverWait(DRIVER, DEFAULT_TIMEOUT_IN_SECONDS).until(
+        EC.element_to_be_clickable((By.XPATH, "/html/body/div[3]/div/div/div[4]/div[3]/div[1]/div[2]/input"))).send_keys(ATERNOS_ACCOUNT["username"])
+
+    WebDriverWait(DRIVER, DEFAULT_TIMEOUT_IN_SECONDS).until(
+        EC.element_to_be_clickable((By.XPATH, "/html/body/div[3]/div/div/div[4]/div[3]/div[2]/div[2]/input"))).send_keys(ATERNOS_ACCOUNT["password"])
 
     _click_button_by_xpath("/html/body/div[3]/div/div/div[4]/div[3]/div[4]")
 
@@ -141,6 +147,7 @@ def enter_server():
 
 
 def click_start_button():
+    print("clicking")
     _click_button_by_id("start")
 
 
@@ -150,12 +157,15 @@ def click_confirm_now():
 
 def disable_password_popup():
     DRIVER.get(CHROME_PASSWORD_SETTINGS_URL)
+    sleep(5)
+    element = SHADOW.find_element("#passwordToggle")
+    element.click()
 
     # password_settings_script_selector = r"document.getElementsByTagName('settings-ui')[0].shadowRoot.getElementById('main').shadowRoot.querySelector#('settings-basic-page').shadowRoot.querySelector('[page-title=Autofill]').querySelector('settings-autofill-page').shadowRoot.getElementById('pages').getElementsByClassName('iron-selected')[0].querySelector('#passwordManagerButton')"
 
-    password_popup_toggler_script_selector = r"document.getElementsByTagName('settings-ui')[0].shadowRoot.getElementById('main').shadowRoot.querySelector('settings-basic-page').shadowRoot.querySelector('[page-title=Autofill]').querySelector('settings-autofill-page').shadowRoot.querySelector('settings-animated-pages').querySelector('[page-title=Passwords]').querySelector('#passwordSection').shadowRoot.querySelector('#passwordToggle')"
+    # password_popup_toggler_script_selector = r"document.getElementsByTagName('settings-ui')[0].shadowRoot.getElementById('main').shadowRoot.querySelector('settings-basic-page').shadowRoot.querySelector('[page-title=Autofill]').querySelector('settings-autofill-page').shadowRoot.querySelector('settings-animated-pages').querySelector('[page-title=Passwords]').querySelector('#passwordSection').shadowRoot.querySelector('#passwordToggle')"
 
-    _click_button_by_script_selector(password_popup_toggler_script_selector)
+    # _click_button_by_script_selector(password_popup_toggler_script_selector)
 
 
 """
@@ -167,29 +177,32 @@ status class -> .queueing
 
 @commands.command()
 async def start(ctx):
-    await ctx.send("Entering aternos account")
+    try:
+        await ctx.send("Entering aternos account")
 
-    perform_web_scraping_actions(
-        [disable_password_popup, go_to_aternos_site, click_play_button, fill_login_form, enter_server])
+        perform_web_scraping_actions(
+            [go_to_aternos_site, click_play_button, fill_login_form, enter_server])
 
-    await ctx.send("Checking server status")
+        await ctx.send("Checking server status")
 
-    status_element = WebDriverWait(DRIVER, 10).until(
-        EC.element_to_be_clickable((By.CLASS_NAME, "status")))
-    status = get_status_from_element(status_element)
+        status_element = WebDriverWait(DRIVER, 10).until(
+            EC.element_to_be_clickable((By.CLASS_NAME, "status")))
+        status = get_status_from_element(status_element)
 
-    if status == ONLINE_STATUS:
-        await ctx.send("The server is already online bruh")
-        return
+        print(status)
 
-    await ctx.send("Continuing the opening process as the server is indeed not online yet")
+        if status == ONLINE_STATUS:
+            await ctx.send("The server is already online bruh")
+            return
 
-    perform_web_scraping_actions([click_start_button])
+        await ctx.send("Continuing the opening process as the server is indeed not online yet")
 
-    sleep(2)
+        perform_web_scraping_actions([click_start_button])
 
-    if status == QUEUEING_STATUS:
-        perform_web_scraping_actions([click_confirm_now()])
+        if status == QUEUEING_STATUS:
+            perform_web_scraping_actions([click_confirm_now()])
 
-    await ctx.send("Server has been successfully put online!🥳")
-
+        await ctx.send("Server has been successfully put online!🥳")
+    except Exception as e:
+        print(e)
+        await ctx.send("An error has occurred. Pls try again")

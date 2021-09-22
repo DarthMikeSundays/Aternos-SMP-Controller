@@ -1,6 +1,6 @@
 from env_handler import TOKEN
 
-from aternos_server import start, end
+from aternos_server import start
 
 from discord.ext import commands
 
