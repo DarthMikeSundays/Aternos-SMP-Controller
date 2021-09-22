@@ -16,13 +16,14 @@ options = Options()
 
 options.add_argument("--disable-notifications")
 
-DRIVER = uc.Chrome(options=options)
+DRIVER = uc.Chrome()
 # brave browser: options.binary_location = "C:/Program Files/BraveSoftware/Brave-Browser/Application/brave.exe"
 
 ATERNOS_URL = "https://aternos.org/:en/"
 CHROME_PASSWORD_SETTINGS_URL = "chrome://settings/passwords"
 
 DEFAULT_TIMEOUT_IN_SECONDS = 10
+SLEEP_TIME_FOR_JS_SELECTION_OPERATIONS = 2
 
 OFFLINE_STATUS = "offline"
 QUEUEING_STATUS = "queueing"
@@ -78,6 +79,7 @@ def _click_button_by_class_name(*args):
 
 
 def _click_button_by_script_selector(script_selector: str):
+    sleep(SLEEP_TIME_FOR_JS_SELECTION_OPERATIONS)
     element = DRIVER.execute_script(f"return {script_selector}")
     element.click()
 
@@ -102,17 +104,15 @@ def _continue_with_ad_blocker():
 
 
 def _accept_cookies():
-    print("accepting cookies")
     _click_button_by_class_name("css-1litn2c")
 
 
 def _accept_privacy_policies():
-    print("accepting privacy policy")
     _click_button_by_id("accept-choices")
 
 
 # def _accept_notifications():
- #   _click_button_by_link_text("Okay")
+#   _click_button_by_link_text("Okay")
 
 def go_to_aternos_site():
     DRIVER.get(ATERNOS_URL)
@@ -193,8 +193,3 @@ async def start(ctx):
 
     await ctx.send("Server has been successfully put online!🥳")
 
-
-@commands.command()
-async def end(ctx):
-    print("bruh")
-    await ctx.send("the ender dragon is dupe")

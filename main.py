@@ -10,7 +10,6 @@ COMMAND_PREFIX = "mc:"
 def main():
     bot = commands.Bot(COMMAND_PREFIX)
     bot.add_command(start)
-    bot.add_command(end)
 
     bot.run(TOKEN)
 
